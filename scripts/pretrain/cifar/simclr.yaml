@@ -1,0 +1,64 @@
+defaults:
+  - _self_
+  - augmentations: symmetric.yaml
+  - wandb: private.yaml
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+# disable hydra outputs
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
+name: "simclr-resnet18-cifar100" # change here for cifar100
+method: "simclr"
+backbone:
+  name: "resnet18"
+method_kwargs:
+  proj_hidden_dim: 2048
+  proj_output_dim: 256
+  temperature: 0.2
+  drop: 0
+  non_neg: none
+  loss_type: xent
+  tau: 1
+  gsize: 256
+  learnable_temp: 0
+  normalize: dim
+  power_iter: 1
+data:
+  dataset: cifar100 # change here for cifar100
+  train_path: "./data"
+  val_path: "./data"
+  format: "image_folder"
+  num_workers: 4
+  extra_data: None
+  dup: 1
+optimizer:
+  name: "lars"
+  batch_size: 256
+  lr: 0.4
+  classifier_lr: 0.1
+  weight_decay: 1e-4
+  kwargs:
+    clip_lr: True
+    eta: 0.02
+    exclude_bias_n_norm: True
+scheduler:
+  name: "warmup_cosine"
+checkpoint:
+  enabled: True
+  dir: "trained_models"
+  frequency: 1
+auto_resume:
+  enabled: True
+
+# overwrite PL stuff
+max_epochs: 200
+devices: [0]
+sync_batchnorm: True
+accelerator: "gpu"
+strategy: "ddp"
+precision: 16
+

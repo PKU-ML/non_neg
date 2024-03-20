@@ -14,7 +14,7 @@ Non-negative Contrastive Learning (NCL) is a new self-supervised learning method
 
 We implement NCL upon the ```solo-learn``` [repo](https://github.com/vturrisi/solo-learn) (the version on Sep 27, 2022), which enables a standardized and modularized protocol for various SSL methods.
 
-What we have changed is minimal. Apart from the parser nuances, we essentially only change [one line](https://github.com/PKU-ML/Non-negative-Contrastive-Learning/blob/main/solo/methods/simclr.py#L173):
+What we have changed is minimal. Apart from the parser nuances, we essentially only change [one line](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py#L174):
 
 ```
     z = torch.nn.functional.relu(z)

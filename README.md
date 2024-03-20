@@ -1,7 +1,7 @@
 # Non-negative Contrastive Learning
 
 
-This repository includes a PyTorch implementation of the ICLR 2024 paper [Non-negative Contrastive Learning](https://openreview.net/pdf?id=lNCnZwcH5Z), authored by  [Yifei Wang*](https://yifeiwang77.com/), Qi Zhang*, Yaoyu Guo, and [Yisen Wang](https://yisenwang.github.io/).
+This repository includes a PyTorch implementation of the ICLR 2024 paper [Non-negative Contrastive Learning](https://arxiv.org/pdf/2403.12459), authored by  [Yifei Wang*](https://yifeiwang77.com/), Qi Zhang*, Yaoyu Guo, and [Yisen Wang](https://yisenwang.github.io/).
 
 
 Non-negative Contrastive Learning (NCL) is a new self-supervised learning method that imposes non-negativity on contrastive features. NCL can significantly enhance the feature interpretability, sparsity, and disentanglement over standard contrastive learning, while improving (at least maintaining) its performance on classical tasks.
@@ -14,7 +14,7 @@ Non-negative Contrastive Learning (NCL) is a new self-supervised learning method
 
 We implement NCL upon the ```solo-learn``` [repo](https://github.com/vturrisi/solo-learn) (the version on Sep 27, 2022), which enables a standardized and modularized protocol for various SSL methods.
 
-What we have changed is minimal. Apart from the parser nuances, we essentially only change one line [below](https://github.com/PKU-ML/Non-negative-Contrastive-Learning/blob/main/solo/methods/simclr.py#L173):
+What we have changed is minimal. Apart from the parser nuances, we essentially only change [one line](https://github.com/PKU-ML/Non-negative-Contrastive-Learning/blob/main/solo/methods/simclr.py#L173):
 
 ```
     z = torch.nn.functional.relu(z)

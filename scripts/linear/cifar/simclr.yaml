@@ -55,4 +55,6 @@ strategy: "ddp"
 precision: 16
 finetune: False
 pretrained_feature_extractor: path/to/pretrained/feature/extractor
+proj_h_dim : 2048
+proj_o_dim : 256
 

@@ -33,14 +33,14 @@ pip3 install .[dali,umap,h5] --extra-index-url https://developer.download.nvidia
 
 ## Pretraining
 
-Pretrain with the default configuration files using the following commond:
+Pretrain with the default configuration files using the following command:
 ```bash
 python3 main_pretrain.py --config-path scripts/pretrain/{dataset}/ --config-name {method}.yaml
 ```
 
 Here, ``dataset={cifar, imagenet-100}`` and ``method={simclr, ncl}``. To config either ``cifar10`` or ``cifar100``, change or override the ``data.dataset`` property to either ``cifar10`` or ``cifar100``.
 
-**Configurations.** The training and evaluation configuration files are in the ``scripts`` folder. Specifically, one can change arguments in the yaml files to realize different methods. Otherwise, one may also override arguments directly in the commond line, e.g.,
+**Configurations.** The training and evaluation configuration files are in the ``scripts`` folder. Specifically, one can change arguments in the yaml files to realize different methods. Otherwise, one may also override arguments directly in the command line, e.g.,
 ```bash
 python3 main_pretrain.py --config-path scripts/pretrain/{dataset}/ --config-name {method}.yaml dataset=cifar100 non_neg=rep_relu
 ```

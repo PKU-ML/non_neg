@@ -150,6 +150,11 @@ def parse_cfg(cfg: omegaconf.DictConfig):
         cfg, "data.augmentations.std", IMAGENET_DEFAULT_STD
     )
 
+
+
+    cfg.proj_h_dim =  omegaconf_select(cfg, "proj_h_dim", 4096)
+    cfg.proj_o_dim = omegaconf_select(cfg, "proj_o_dim", 512)
+
     # extra processing
     if cfg.data.dataset in _N_CLASSES_PER_DATASET:
         cfg.data.num_classes = _N_CLASSES_PER_DATASET[cfg.data.dataset]

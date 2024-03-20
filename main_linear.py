@@ -74,9 +74,9 @@ def main(cfg: DictConfig):
     state = torch.load(ckpt_path, map_location="cpu")["state_dict"]
     scale_param=0
     projector = nn.Sequential(
-                nn.Linear(512, 4096),
+                nn.Linear(512, cfg.proj_h_dim),
                 nn.ReLU(),
-                nn.Linear(4096,512),
+                nn.Linear(cfg.proj_h_dim,cfg.proj_o_dim),
     )
     state2 = state.copy()
     for k in list(state.keys()):
@@ -122,6 +122,8 @@ def main(cfg: DictConfig):
 
     
     model = LinearModel(backbone, loss_func=loss_func, mixup_func=mixup_func, cfg=cfg,scale_param=scale_param)
+    for param in projector.parameters():
+        param.requires_grad=False
     LinearModel.projector=projector.to("cuda")
     make_contiguous(model)
     # can provide up to ~20% speed up

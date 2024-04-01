@@ -10,7 +10,7 @@ hydra:
   run:
     dir: .
 
-name: "finetune-cifar10" # change here for cifar100
+name: "finetune-cifar100" # change here for cifar100
 method: "simclr"
 backbone:
   name: "resnet18"

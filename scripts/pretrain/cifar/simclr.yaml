@@ -19,14 +19,7 @@ method_kwargs:
   proj_hidden_dim: 2048
   proj_output_dim: 256
   temperature: 0.2
-  drop: 0
-  non_neg: none
-  loss_type: xent
-  tau: 1
-  gsize: 256
-  learnable_temp: 0
-  normalize: dim
-  power_iter: 1
+  non_neg: None
 data:
   dataset: cifar100 # change here for cifar100
   train_path: "./data"

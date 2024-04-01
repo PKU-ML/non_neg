@@ -1,92 +1,119 @@
 # Non-negative Contrastive Learning
 
+Official PyTorch implementation of the ICLR 2024 paper [Non-negative Contrastive Learning](https://arxiv.org/pdf/2403.12459) by  [Yifei Wang*](https://yifeiwang77.com/), Qi Zhang*, Yaoyu Guo, and [Yisen Wang](https://yisenwang.github.io/).
 
-This repository includes a PyTorch implementation of the ICLR 2024 paper [Non-negative Contrastive Learning](https://arxiv.org/pdf/2403.12459), authored by  [Yifei Wang*](https://yifeiwang77.com/), Qi Zhang*, Yaoyu Guo, and [Yisen Wang](https://yisenwang.github.io/).
-
-
-Non-negative Contrastive Learning (NCL) is a new self-supervised learning method that imposes non-negativity on contrastive features. NCL can significantly enhance the feature interpretability, sparsity, and disentanglement over standard contrastive learning, while improving (at least maintaining) its performance on classical tasks.
+Links: [Wandb Logs](wandb.ai/doxawang/non_neg) | [Checkpoints](https://github.com/PKU-ML/non_neg#pretrained-checkpoints)
 
 
-![image](img1.png)
+**Updates**:
 
+- 2024.04.01. Add [logging of feature stats](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py) & [wandb pretraining logs](wandb.ai/doxawang/non_neg). With these stats, we can directly observe the differences between CL and NCL training.
+- 2024.03.19. Code is released. 🎉
 
 ## TLDR
 
-We implement NCL upon the ```solo-learn``` [repo](https://github.com/vturrisi/solo-learn) (the version on Sep 27, 2022), which enables a standardized and modularized protocol for various SSL methods.
+With non-negative constraints  on contrastive features, NCL can significantly enhance feature interpretability, sparsity, and disentanglement over standard contrastive learning, while improving (at least maintaining) its performance on classical tasks.
 
-What we have changed is minimal. Apart from the parser nuances, we essentially only change [one line](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py#L174):
+![image](assets/img1.png)
 
+
+<!-- Non-negative Contrastive Learning (NCL) is a renaisense  new self-supervised learning method that -->
+
+For implementation, the difference between Contrastive Learning (CL) and Non-negative Contrastive learning (NCL) is minimal. Apart from argparser nuances, NCL only adds [one line](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py#L174) upon existing methods:
 ```
     z = torch.nn.functional.relu(z)
 ```
-That is, if we use NCL, we pass the flag ```self.non_neg=relu```, which applies ReLU to the projector output ```z```.
+which applies a non-negative transformation (eg ReLU) to the output features ```z``` to enforce feature non-negativity. This is all we need to convert a standard CL method (e.g., SimCLR) to a non-negative version, and deliver all the magic.
 
-This is all we need to convert a standard contrastive method (e.g., SimCLR) to a non-negative version, and deliver all the magic.
 
 
 ## Installation
 
-The installation follows ```solo-learn```.  First clone the repo in a ``Python 3.8`` environment. Then install dependence with
+The codebase is built upon a previous version of [```solo-learn```](https://github.com/vturrisi/solo-learn) (the version on Sep 27, 2022). To avoid unexpected errors, first create a ``Python3.8`` environment, and then install the reposoity as below.
 ```
+# clone the repository
+git clone https://github.com/PKU-ML/non_neg
+# create environment
+conda create -n non_neg python=3.8
+conda activate non_neg
+# install dependences
+cd non_neg
 pip3 install .[dali,umap,h5] --extra-index-url https://developer.download.nvidia.com/compute/redist --extra-index-url https://download.pytorch.org/whl/cu113
 ```
 
 ## Pretraining
 
-Pretrain with the default configuration files using the following command:
+Pretrain with the default configuration files using the following command.
+
+### CIFAR-100 / CIFAR-10
 ```bash
-python3 main_pretrain.py --config-path scripts/pretrain/{dataset}/ --config-name {method}.yaml
+# SimCLR
+python3 main_pretrain.py \
+    --config-path scripts/pretrain/cifar \
+    --config-name simclr.yaml
+# NCL
+python3 main_pretrain.py \
+    --config-path scripts/pretrain/cifar \
+    --config-name ncl.yaml
+```
+<!-- Here, ``dataset={cifar, imagenet-100}`` and ``method={simclr, ncl}``. To config either ``cifar10`` or ``cifar100``, change or override the ``data.dataset`` property to either ``cifar10`` or ``cifar100``. -->
+The default setting is for CIFAR-100. For CIFAR-10, override ``data.dataset=cifar10``. Meanwhile, change the experiment name accordingly to avoid collision, e.g., ``name=simclr-resnet18-cifar10-ncl``. Other experiments follow the same setting.
+
+### ImageNet-100
+```bash
+# SimCLR
+python3 main_pretrain.py \
+    --config-path scripts/pretrain/imagenet-100 \
+    --config-name simclr.yaml
+# NCL
+python3 main_pretrain.py \
+    --config-path scripts/pretrain/imagenet-100 \
+    --config-name ncl.yaml
 ```
 
-Here, ``dataset={cifar, imagenet-100}`` and ``method={simclr, ncl}``. To config either ``cifar10`` or ``cifar100``, change or override the ``data.dataset`` property to either ``cifar10`` or ``cifar100``.
-
-**Configurations.** The training and evaluation configuration files are in the ``scripts`` folder. Specifically, one can change arguments in the yaml files to realize different methods. Otherwise, one may also override arguments directly in the command line, e.g.,
-```bash
-python3 main_pretrain.py --config-path scripts/pretrain/{dataset}/ --config-name {method}.yaml dataset=cifar100 non_neg=rep_relu
-```
-
-Notably, we use ``non_neg=rep_relu`` for CIFAR-10 and CIFAR-100 and ``non_neg=relu`` for ImageNet-100 by default.
+By default, we use ``non_neg=rep_relu`` for CIFAR-10 and CIFAR-100 and ``non_neg=relu`` for ImageNet-100.
 
 
-## Downstream Evaluation
+## Linear Evaluation
 
 
 After that, for linear evaluation, run the following command:
 
-
 ```bash
 python3 main_linear.py \
-    --config-path scripts/linear/cifar(imagenet-100) \
-    --config-name simclr.yaml
-
+    --config-path scripts/linear/{dataset} \
+    --config-name simclr.yaml \
+    pretrained_feature_extractor=path/to/pretrained/feature/extractor
 ```
+Here ``dataset={cifar,imagenet100}``. We use the argument ``pretrained_feature_extractor`` to configure the path of the pretrained checkpoints.
+
+
+## Full finetuning
 
 And for fine-tuning evaluation, run the following command:
 
 
 ```bash
 python3 main_linear.py \
-    --config-path scripts/finetuning/cifar(imagenet-100) \
+    --config-path scripts/finetuning/{dataset} \
     --config-name simclr.yaml
-
 ```
 
-In the scripts of offline evaluations, we use the argument ``pretrained_feature_extractor`` to configure the path of the pretrained checkpoints.
+## Feature Selection
 
 And for offline linear probing with selected dimensions, run the following command:
 
 ```bash
 python3 main_linear.py \
     --config-path scripts/selected \
-    --config-name simclr.yaml
-
+    --config-name simclr.yaml \
+    selected_dims=256
 ```
-
 where the argument ``selected_dims`` configures the dimensions of selected features.
 
 
 
-## Loading Pretrained Checkpoints
+## Pretrained Checkpoints
 
 The following table provides the pre-trained checkpoints for CL and NCL.
 

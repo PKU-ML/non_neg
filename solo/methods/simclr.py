@@ -29,6 +29,8 @@ from solo.utils.misc import omegaconf_select
 
 import numpy as np
 
+
+
 class SimCLR(BaseMethod):
     def __init__(self, cfg: omegaconf.DictConfig):
         """Implements SimCLR (https://arxiv.org/abs/2002.05709).
@@ -43,22 +45,11 @@ class SimCLR(BaseMethod):
         super().__init__(cfg)
 
         self.temperature: float = cfg.method_kwargs.temperature
-        self.normalize: bool = cfg.method_kwargs.normalize
-        self.learnable_temp = cfg.method_kwargs.learnable_temp
-        if cfg.method_kwargs.learnable_temp:
-            print('use learnable temp')
-            self.temperature = torch.tensor(self.temperature)
-            self.temperature = nn.Parameter(self.temperature)
-        self.drop = cfg.method_kwargs.drop
-        self.non_neg = cfg.method_kwargs.non_neg
-        self.proj = cfg.method_kwargs.proj
-        self.loss_type = cfg.method_kwargs.loss_type
-        self.tau = cfg.method_kwargs.tau
-        self.gsize = cfg.method_kwargs.gsize
-        self.power_iter = cfg.method_kwargs.power_iter
 
         proj_hidden_dim: int = cfg.method_kwargs.proj_hidden_dim
         proj_output_dim: int = cfg.method_kwargs.proj_output_dim
+
+        self.non_neg = cfg.method_kwargs.non_neg
 
         # projector
         self.projector = nn.Sequential(
@@ -81,15 +72,7 @@ class SimCLR(BaseMethod):
         """
 
         cfg = super(SimCLR, SimCLR).add_and_assert_specific_cfg(cfg)
-        cfg.method_kwargs.drop = omegaconf_select(cfg, "method_kwargs.drop", 0.0)
         cfg.method_kwargs.non_neg = omegaconf_select(cfg, "method_kwargs.non_neg", None)
-        cfg.method_kwargs.proj = omegaconf_select(cfg, "method_kwargs.proj", 'vanilla')
-        cfg.method_kwargs.loss_type = omegaconf_select(cfg, "method_kwargs.loss_type", 'xent')
-        cfg.method_kwargs.tau = omegaconf_select(cfg, "method_kwargs.tau", 0.0)
-        cfg.method_kwargs.gsize = omegaconf_select(cfg, "method_kwargs.gsize", 256)
-        cfg.method_kwargs.learnable_temp = omegaconf_select(cfg, "method_kwargs.learnable_temp", 0)
-        cfg.method_kwargs.normalize = omegaconf_select(cfg, "method_kwargs.normalize", False)
-        cfg.method_kwargs.power_iter = omegaconf_select(cfg, "method_kwargs.power_iter", False)
 
         assert not omegaconf.OmegaConf.is_missing(cfg, "method_kwargs.proj_output_dim")
         assert not omegaconf.OmegaConf.is_missing(cfg, "method_kwargs.proj_hidden_dim")
@@ -104,12 +87,8 @@ class SimCLR(BaseMethod):
         Returns:
             List[dict]: list of learnable parameters.
         """
-        if self.proj in ['vanilla', 'gsoftmax_rep']:
-            extra_learnable_params = [{"name": "projector", "params": self.projector.parameters()}]
-        else:
-            extra_learnable_params = []
-        if self.learnable_temp:
-            extra_learnable_params += [{"name": "temp", "params": self.temperature}]
+
+        extra_learnable_params = [{"name": "projector", "params": self.projector.parameters()}]
         return super().learnable_params + extra_learnable_params
 
     def forward(self, X: torch.tensor) -> Dict[str, Any]:
@@ -125,9 +104,8 @@ class SimCLR(BaseMethod):
         """
 
         out = super().forward(X)
-        if self.proj == 'vanilla':
-            z = self.projector(out["feats"])
-            out.update({"z": z})
+        z = self.projector(out["feats"])
+        out.update({"z": z})
 
         return out
 
@@ -166,56 +144,118 @@ class SimCLR(BaseMethod):
         z = torch.cat(out["z"])
 
         # ------- non-negative -------
-        if self.non_neg == None:
+        supported_non_neg_list = [None, 'relu', 'rep_relu', 'gelu', 'sigmoid', 'softplus', 'exp', 'leakyrelu']
+        assert self.non_neg in supported_non_neg_list, f"non_neg {self.non_neg} should be one of {supported_non_neg_list}"
+
+        if self.non_neg is None:
             # leave blank to restore original contrastive learning
-            pass
-        elif self.non_neg == 'relu': 
-            # vanilla ReLU
+            pass # z=z
+        if self.non_neg == 'relu': 
             z = F.relu(z)
-        elif self.non_neg == 'rep_relu': 
+        if self.non_neg == 'rep_relu': 
             # reparameterized ReLU: forward is ReLU and backward is GELU
             # more friendly to backpropagation and avoids dead neurons 
             gelu_z = F.gelu(z)
             z = gelu_z - gelu_z.data + F.relu(z).data
-        # below are other viable options that enforce non-negativity either strictly or approximately. generally we find strict non-negativity to be more effective
-        elif self.non_neg == 'gelu':
+
+        # some other choices of activation functions that are not non-negative
+        if self.non_neg == 'gelu':
             z = F.gelu(z)
-        elif self.non_neg == 'sigmoid':
+        if self.non_neg == 'sigmoid':
             z = F.sigmoid(z)
-        elif self.non_neg == 'softplus':
+        if self.non_neg == 'softplus':
             z = F.softplus(z)
-        elif self.non_neg == 'exp':
+        if self.non_neg == 'exp':
             z = torch.exp(z)
-        elif self.non_neg == 'leakyrelu':
+        if self.non_neg == 'leakyrelu':
             z = F.leaky_relu(z)
 
         # ------- contrastive loss -------
         n_augs = self.num_large_crops + self.num_small_crops
         indexes = indexes.repeat(n_augs)
-        # row normalize the features
-        if self.normalize == 'none':
-            pass
-        elif self.normalize == 'dim':
-            z = F.normalize(z, dim=-1)
+        z = F.normalize(z, dim=-1)
+
+        nce_loss = simclr_loss_func(
+            z,
+            indexes=indexes,
+            temperature=self.temperature,
+        )
+        
+        self.log("train_nce_loss", nce_loss, on_epoch=True, sync_dist=True)
+
+        if batch_idx == 0:
+            _, X, targets = batch
+            targets = targets.repeat(n_augs)            
+            log_stats(self.log, z, targets)
+
+        return nce_loss + class_loss
 
 
+def log_stats(logger, z, targets=None):
 
-        if self.loss_type == 'xent':
-            if self.learnable_temp:
-                temp = F.softplus(self.temperature).clamp(min=self.learnable_temp)
-                self.log("temp", temp, on_epoch=True, sync_dist=True)
-            else:
-                temp = self.temperature
-            nce_loss = simclr_loss_func(
-                z,
-                indexes=indexes,
-                temperature=temp,
-            )
-            
-            self.log("train_nce_loss", nce_loss, on_epoch=True, sync_dist=True)
-            
-            return nce_loss + class_loss
+        # --------- track feature statistics ---------
+                
+        # ratio of non-negative values (fact check that outputs are all non-negative)
+        def non_neg(z): 
+            return (z>=0).float().mean()
+        logger("non_neg_ratio", non_neg(z), on_epoch=True, sync_dist=True)
+
+        # ratio of activated dimensions along minibatch samples
+        def act_dim(z): 
+            return (z.abs().mean(dim=0)>0).float().sum()
+        logger("num_active_dim", act_dim(z), on_epoch=True, sync_dist=True)
+
+        # avereage ratio of zero-values per sample
+        def sparsity(z):
+            return 1 - (z.abs()>1e-5).float().mean()
+        logger("sparse_vals_ratio", sparsity(z), on_epoch=True, sync_dist=True)
+
+        # effective rank of the feature matrix
+        def erank(z):
+            z = z.float()
+            s = torch.linalg.svdvals(z)
+            s = s / s.sum()
+            return -torch.sum(s * torch.log(s + 1e-6))
+        logger("effective_rank", erank(z), on_step=False, on_epoch=True, sync_dist=True)
 
 
+        # semantic consistency
+        def semantic_consistency(features, labels, eps=1e-5, take_abs=False, topk=False):
+            # find activated dimensions
+            active_dim_mask = features.abs().sum(0)>0
+            features  = features[:, active_dim_mask]
+            features = F.normalize(features, dim=1)
 
+            # if topk:
+            #     sorted, indices = torch.sort(features.sum(dim=0), descending=True)
+            #     indices = indices[sorted>1]
+            #     features = features[:, indices]
 
+            acc_per_dim = []
+            for i in range(features.shape[1]): # sweep each feature dimension
+                # only account for activated samples
+                active_sample_mask = features.abs()[:,i] > eps
+                labels_selected = labels[active_sample_mask]
+                try:
+                    dist = labels_selected.bincount()
+                    dist = dist / dist.sum() # normalize to 1
+                    acc = dist.max().item() # ratio of the most frequent label among activatived samples
+                    acc_per_dim.append(acc)
+                except:
+                    pass # sometimes it goes into err
+            mean_acc =  torch.tensor(acc_per_dim).mean()
+            return mean_acc
+
+        if targets is not None:
+            logger("semantic_consistency", semantic_consistency(z, targets), on_epoch=True, sync_dist=True)
+        
+        def orthogonality(features, eps=1e-5):
+            features  = features[:,features.sum(0)>10]
+            n, d = features.shape
+            features = F.normalize(features, dim=0)
+            corr = features.T @ features
+            err = (corr - torch.eye(d, device=features.device)).abs()
+            err = err.mean()
+            return err
+
+        logger("orthogonality", orthogonality(z), on_epoch=True, sync_dist=True)

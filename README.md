@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of the ICLR 2024 paper [Non-negative Contrastive Learning](https://arxiv.org/pdf/2403.12459) by  [Yifei Wang*](https://yifeiwang77.com/), Qi Zhang*, Yaoyu Guo, and [Yisen Wang](https://yisenwang.github.io/).
 
-Links: [Wandb Logs](wandb.ai/doxawang/non_neg) | [Checkpoints](https://github.com/PKU-ML/non_neg#pretrained-checkpoints)
+Links: [Wandb Logs](https://wandb.ai/doxawang/non_neg) | [Checkpoints](https://github.com/PKU-ML/non_neg#pretrained-checkpoints)
 
 
 **Updates**:

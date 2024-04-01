@@ -7,7 +7,7 @@ Links: [Wandb Logs](wandb.ai/doxawang/non_neg) | [Checkpoints](https://github.co
 
 **Updates**:
 
-- 2024.04.01. Add [logging of feature stats](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py) & [wandb pretraining logs](wandb.ai/doxawang/non_neg). With these stats, we can directly observe the differences between CL and NCL training.
+- 2024.04.01. Add [logging of feature stats](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py) & [wandb pretraining logs](https://wandb.ai/doxawang/non_neg). With these stats, we can directly observe the differences between CL and NCL training.
 - 2024.03.19. Code is released. 🎉
 
 ## TLDR
@@ -19,7 +19,7 @@ With non-negative constraints  on contrastive features, NCL can significantly en
 
 <!-- Non-negative Contrastive Learning (NCL) is a renaisense  new self-supervised learning method that -->
 
-For implementation, the difference between Contrastive Learning (CL) and Non-negative Contrastive learning (NCL) is minimal. Apart from argparser nuances, NCL only adds [one line](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py#L174) upon existing methods:
+For implementation, the difference between Contrastive Learning (CL) and Non-negative Contrastive learning (NCL) is minimal. Apart from argparser nuances, NCL only adds [one line](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py#L154) upon existing methods:
 ```
     z = torch.nn.functional.relu(z)
 ```

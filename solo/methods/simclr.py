@@ -250,7 +250,7 @@ def log_stats(logger, z, targets=None):
             logger("semantic_consistency", semantic_consistency(z, targets), on_epoch=True, sync_dist=True)
         
         def orthogonality(features, eps=1e-5):
-            features  = features[:,features.sum(0)>10]
+            features  = features[:,features.abs().sum(0)>0]
             n, d = features.shape
             features = F.normalize(features, dim=0)
             corr = features.T @ features

@@ -24,7 +24,7 @@ method_kwargs:
   learn_temp: 0
   normalize: dim
   tau: 1
-  non_neg: none
+  non_neg: None
 data:
   dataset: imagenet100
   train_path: "imagenet100/train"

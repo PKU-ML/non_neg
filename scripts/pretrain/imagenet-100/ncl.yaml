@@ -11,7 +11,7 @@ hydra:
   run:
     dir: .
 
-name: "simclr-imagenet100"
+name: "simclr-imagenet100-ncl"
 method: "simclr"
 backbone:
   name: "resnet18"
@@ -24,7 +24,7 @@ method_kwargs:
   learn_temp: 0
   normalize: dim
   tau: 1
-  non_neg: non_neg
+  non_neg: relu
 data:
   dataset: imagenet100
   train_path: "imagenet100/train"

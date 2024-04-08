@@ -34,6 +34,9 @@ checkpoint:
   frequency: 1
 auto_resume:
   enabled: True
+method_kwargs:
+  proj_hidden_dim: 16384
+  proj_output_dim: 2048
 
 # overwrite PL stuff
 max_epochs: 30

@@ -54,7 +54,5 @@ accelerator: "gpu"
 strategy: "ddp"
 precision: 16
 finetune: True
-proj_h_dim : 2048
-proj_o_dim : 256
 pretrained_feature_extractor: path/to/pretrained/feature/extractor
 

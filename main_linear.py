@@ -74,9 +74,9 @@ def main(cfg: DictConfig):
     state = torch.load(ckpt_path, map_location="cpu")["state_dict"]
     scale_param=0
     projector = nn.Sequential(
-                nn.Linear(512, cfg.proj_h_dim),
+                nn.Linear(512, cfg.method_kwargs.proj_hidden_dim),
                 nn.ReLU(),
-                nn.Linear(cfg.proj_h_dim,cfg.proj_o_dim),
+                nn.Linear(cfg.method_kwargs.proj_hidden_dim,cfg.method_kwargs.proj_output_dim),
     )
     state2 = state.copy()
     for k in list(state.keys()):

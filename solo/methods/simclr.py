@@ -185,77 +185,76 @@ class SimCLR(BaseMethod):
 
         if batch_idx == 0:
             _, X, targets = batch
-            targets = targets.repeat(n_augs)            
-            log_stats(self.log, z, targets)
+            targets2 = targets.repeat(n_augs)
+            stats = {
+                'non_neg_ratio': non_neg(z),
+                'num_active_dim': act_dim(z),
+                'sparse_vals_ratio': sparsity(z),
+                'effective_rank': erank(z),
+                'orthogonality': orthogonality(z),
+                'semantic_consistency': semantic_consistency(z, targets2),
+            }
+            for k, v in stats.items():
+                self.log(k, v, on_epoch=True, on_step=False, sync_dist=True)
 
         return nce_loss + class_loss
+    
+# ====== functions for calculating feature statistics ======
+
+# ratio of non-negative values (fact check that outputs are all non-negative)
+def non_neg(z): 
+    return (z>=0).float().mean()
+
+# ratio of activated dimensions along minibatch samples
+def act_dim(z): 
+    return (z.abs().mean(dim=0)>0).float().sum()
 
 
-def log_stats(logger, z, targets=None):
-
-        # --------- track feature statistics ---------
-                
-        # ratio of non-negative values (fact check that outputs are all non-negative)
-        def non_neg(z): 
-            return (z>=0).float().mean()
-        logger("non_neg_ratio", non_neg(z), on_epoch=True, sync_dist=True)
-
-        # ratio of activated dimensions along minibatch samples
-        def act_dim(z): 
-            return (z.abs().mean(dim=0)>0).float().sum()
-        logger("num_active_dim", act_dim(z), on_epoch=True, sync_dist=True)
-
-        # avereage ratio of zero-values per sample
-        def sparsity(z):
-            return 1 - (z.abs()>1e-5).float().mean()
-        logger("sparse_vals_ratio", sparsity(z), on_epoch=True, sync_dist=True)
-
-        # effective rank of the feature matrix
-        def erank(z):
-            z = z.float()
-            s = torch.linalg.svdvals(z)
-            s = s / s.sum()
-            return -torch.sum(s * torch.log(s + 1e-6))
-        logger("effective_rank", erank(z), on_step=False, on_epoch=True, sync_dist=True)
+# avereage ratio of zero-values per sample
+def sparsity(z):
+    return 1 - (z.abs()>1e-5).float().mean()
+# effective rank of the feature matrix
+def erank(z):
+    z = z.float()
+    s = torch.linalg.svdvals(z)
+    s = s / s.sum()
+    return -torch.sum(s * torch.log(s + 1e-6))
 
 
-        # semantic consistency
-        def semantic_consistency(features, labels, eps=1e-5, take_abs=False, topk=False):
-            # find activated dimensions
-            active_dim_mask = features.abs().sum(0)>0
-            features  = features[:, active_dim_mask]
-            features = F.normalize(features, dim=1)
+# semantic consistency
+def semantic_consistency(features, labels, eps=1e-5, take_abs=False, topk=False):
+    # find activated dimensions
+    active_dim_mask = features.abs().sum(0)>0
+    features  = features[:, active_dim_mask]
+    features = F.normalize(features, dim=1)
 
-            # if topk:
-            #     sorted, indices = torch.sort(features.sum(dim=0), descending=True)
-            #     indices = indices[sorted>1]
-            #     features = features[:, indices]
+    # if topk:
+    #     sorted, indices = torch.sort(features.sum(dim=0), descending=True)
+    #     indices = indices[sorted>1]
+    #     features = features[:, indices]
 
-            acc_per_dim = []
-            for i in range(features.shape[1]): # sweep each feature dimension
-                # only account for activated samples
-                active_sample_mask = features.abs()[:,i] > eps
-                labels_selected = labels[active_sample_mask]
-                try:
-                    dist = labels_selected.bincount()
-                    dist = dist / dist.sum() # normalize to 1
-                    acc = dist.max().item() # ratio of the most frequent label among activatived samples
-                    acc_per_dim.append(acc)
-                except:
-                    pass # sometimes it goes into err
-            mean_acc =  torch.tensor(acc_per_dim).mean()
-            return mean_acc
+    acc_per_dim = []
+    for i in range(features.shape[1]): # sweep each feature dimension
+        # only account for activated samples
+        active_sample_mask = features.abs()[:,i] > eps
+        labels_selected = labels[active_sample_mask]
+        try:
+            dist = labels_selected.bincount()
+            dist = dist / dist.sum() # normalize to 1
+            acc = dist.max().item() # ratio of the most frequent label among activatived samples
+            acc_per_dim.append(acc)
+        except:
+            pass # sometimes it goes into err
+    mean_acc =  torch.tensor(acc_per_dim).mean()
+    return mean_acc
 
-        if targets is not None:
-            logger("semantic_consistency", semantic_consistency(z, targets), on_epoch=True, sync_dist=True)
+
+def orthogonality(features, eps=1e-5):
+    features  = features[:,features.abs().sum(0)>0]
+    n, d = features.shape
+    features = F.normalize(features, dim=0)
+    corr = features.T @ features
+    err = (corr - torch.eye(d, device=features.device)).abs()
+    err = err.mean()
+    return err
         
-        def orthogonality(features, eps=1e-5):
-            features  = features[:,features.abs().sum(0)>0]
-            n, d = features.shape
-            features = F.normalize(features, dim=0)
-            corr = features.T @ features
-            err = (corr - torch.eye(d, device=features.device)).abs()
-            err = err.mean()
-            return err
-
-        logger("orthogonality", orthogonality(z), on_epoch=True, sync_dist=True)

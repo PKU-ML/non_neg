@@ -129,22 +129,23 @@ def main(cfg: DictConfig):
     # without making the user specify every single thing about the model
 
     # validation dataloader for when it is available
+    if cfg.data.format == "dali":
+        val_data_format = "image_folder"
+    else:
+        val_data_format = cfg.data.format
 
     train_loader, val_loader = prepare_data_classification(
-            'imagenet100',
-            train_data_path="/data/qzhang/solo-effective/datasets/imagenet100/train",
-            val_data_path="/data/qzhang/solo-effective/datasets/imagenet100/val",
-            data_format="dali",
-            batch_size=256,
-            num_workers=4,
+        cfg.data.dataset,
+        train_data_path=cfg.data.train_path,
+        val_data_path=cfg.data.val_path,
+        data_format=val_data_format,
+        batch_size=cfg.optimizer.batch_size,
+        num_workers=cfg.data.num_workers,
         )
     train_dataset, val_dataset = train_loader.dataset, val_loader.dataset
 
+    # TODO: add the code that load / computes features from the model
     
-    all_data = [val_dataset]
-    torch.save(all_data, 'plots/imagenet100.pt')
-    # return
-
     import torchvision.utils as tv
     import torch.nn.functional as F
 

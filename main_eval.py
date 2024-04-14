@@ -24,7 +24,7 @@ import hydra
 import torch
 from omegaconf import DictConfig, OmegaConf
 # from pytorch_lightning.loggers import WandbLogger
-
+import random
 from solo.args.pretrain import parse_cfg
 from solo.data.classification_dataloader import prepare_data as prepare_data_classification
 from solo.data.pretrain_dataloader import (
@@ -145,9 +145,27 @@ def main(cfg: DictConfig):
     train_dataset, val_dataset = train_loader.dataset, val_loader.dataset
 
     # TODO: add the code that load / computes features from the model
+
+    OmegaConf.set_struct(cfg, False)
+    cfg = parse_cfg(cfg)
+    model = METHODS[cfg.method](cfg)
+    make_contiguous(model)
+
+    ckpt = torch.load(cfg.resume_from_checkpoint)
+
+    model.load_state_dict(ckpt["state_dict"])
+    model = model.cuda()
+
+
+
+    val_features,val_labels = inference(model,val_loader)
+
+
     
     import torchvision.utils as tv
     import torch.nn.functional as F
+
+
 
     if 'relu' in cfg.resume_from_checkpoint:
         val_features = F.relu(val_features)
@@ -160,7 +178,7 @@ def main(cfg: DictConfig):
         # sparsity_per_dim =  (features.abs().sum(dim=1)<eps).float() * 100
         # return sparsity_per_dim
         sp = ((features.abs()<eps).float().sum(dim=1)) / len(features[0]) * 100
-        print('sparsity:', sp)
+        print('sparsity:', sp.mean())
         return sp
 
     def cluster_acc(features, labels, eps=1e-5, take_abs=False, topk=False):
@@ -194,7 +212,6 @@ def main(cfg: DictConfig):
                 ent_per_dim.append(ent)
             except:
                 pass
-        import pdb; pdb.set_trace()
         acc_per_dim =  torch.tensor(acc_per_dim) * 100
         ent_per_dim =  torch.tensor(ent_per_dim)
         print('[cluster acc] mean {:.4f} std {:.4f}'.format(acc_per_dim.mean(), acc_per_dim.std()))
@@ -212,11 +229,43 @@ def main(cfg: DictConfig):
         err = err.median()        
         print('disentanglement mean {:.3f} median {:.3f}'.format(err.mean(), err.median()))
         return corr
+
+    def retrieval(val_features,val_labels):
+        #val_features = torch.nn.functional.relu(val_features)
+        dims = val_features.size()[1]
+        f = F.normalize(val_features)
+        feature_sum = torch.sum(f,dim=0)
+        _,index = torch.sort(feature_sum,descending=True)
+        #index = random.sample(range(0,dims),dims)
+        target=val_labels
+
+        for k in range(0,dims,32):
+            f1 = f[:,index[0:k]]
+            mAP=0
+            for i in range(f1.size()[0]):
+
+                orig = f1[i]
+                dis = (f1-orig)**2
+                dis = torch.sum(dis, dim=1)
+                dis = torch.sort(dis)[1]
+                correct =0
+                for j in range(1,11):
+                    if dis[j] == i:
+                       continue
+                    if target[dis[j]] == target[i]:
+                        correct+=1
+                mAP+=(correct/10)
+
+            mAP /= f.size()[0]
+            print('map:',mAP)
+
+
+
     
     sparsity(val_features)
     cluster_acc(val_features, val_labels)
     orthogonality(val_features)
-    import pdb; pdb.set_trace()
+    retrieval(val_features,val_labels)
 
     # guess=torch.tensor([torch.bincount(temp[:,i]).argmax() for i in range(idx.shape[1])])
 

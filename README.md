@@ -7,7 +7,7 @@ Links: [Wandb Logs](https://wandb.ai/doxawang/non_neg) | [Checkpoints](https://g
 
 **Updates**:
 
-- 2024.04.14  Update codes for calculating class consistency, sparsity, and image retrieval precision in main_eval.py.
+- 2024.04.14.  Update codes for calculating class consistency, sparsity, and image retrieval precision in main_eval.py.
 - 2024.04.01. Add [logging of feature stats](https://github.com/PKU-ML/non_neg/blob/main/solo/methods/simclr.py) & [wandb pretraining logs](https://wandb.ai/doxawang/non_neg). With these stats, we can directly observe the differences between CL and NCL training.
 - 2024.03.19. Code is released. 🎉
 

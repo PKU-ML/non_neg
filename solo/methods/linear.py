@@ -165,13 +165,7 @@ class LinearModel(pl.LightningModule):
 
 
 
-        self.projector = nn.Sequential(
-                nn.Linear(512, 2048),
-                nn.ReLU(),
-                nn.Linear(2048, 256),
-        )
-        for param in self.projector.parameters():
-            param.requires_grad= False
+
 
         self.i_index = None
         #self.i_index = torch.load('importance.pt')

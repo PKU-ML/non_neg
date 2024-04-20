@@ -27,7 +27,7 @@ optimizer:
   weight_decay: 0
 scheduler:
   name: "step"
-  lr_decay_steps: [15,20]
+  lr_decay_steps: [60,80]
 checkpoint:
   enabled: True
   dir: "trained_models"
@@ -39,7 +39,7 @@ method_kwargs:
   proj_output_dim: 2048
 
 # overwrite PL stuff
-max_epochs: 25
+max_epochs: 50
 devices: [0]
 sync_batchnorm: True
 accelerator: "gpu"

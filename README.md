@@ -108,7 +108,7 @@ And for offline linear probing with selected dimensions, run the following comma
 python3 main_linear.py \
     --config-path scripts/selected \
     --config-name simclr.yaml \
-    selected_dims=256
+    selected_dims=512
 ```
 where the argument ``selected_dims`` configures the dimensions of selected features.
 

@@ -46,6 +46,6 @@ accelerator: "gpu"
 strategy: "ddp"
 precision: 16
 finetune: False
-selected_dims: 256
+selected_dims: 512
 
 

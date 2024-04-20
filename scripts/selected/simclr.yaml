@@ -47,5 +47,6 @@ strategy: "ddp"
 precision: 16
 finetune: False
 selected_dims: 512
+pretrained_feature_extractor: path/to/pretrained/feature/extractor
 
 
